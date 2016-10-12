@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.example.android.wearable.watchface;
-
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -31,10 +29,13 @@ import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
-import android.text.format.DateFormat;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.SurfaceHolder;
+import android.view.View;
 import android.view.WindowInsets;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -52,7 +53,6 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
-
 /**
  * Sample digital watch face with blinking colons and seconds. In ambient mode, the seconds are
  * replaced with an AM/PM indicator and the colons don't blink. On devices with low-bit ambient
@@ -81,25 +81,38 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
 
     @Override
     public Engine onCreateEngine() {
-        return new Engine();
+        LayoutInflater mInflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        return new Engine(mInflater);
     }
 
     private class Engine extends CanvasWatchFaceService.Engine implements DataApi.DataListener,
             GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+        LayoutInflater mInflater;
+        RelativeLayout mFrameLayout;
+        TextView timeTextView;
+        TextView dateTextView;
         static final String COLON_STRING = ":";
 
-        /** Alpha value for drawing time when in mute mode. */
+        /**
+         * Alpha value for drawing time when in mute mode.
+         */
         static final int MUTE_ALPHA = 100;
 
-        /** Alpha value for drawing time when not in mute mode. */
+        /**
+         * Alpha value for drawing time when not in mute mode.
+         */
         static final int NORMAL_ALPHA = 255;
 
         static final int MSG_UPDATE_TIME = 0;
 
-        /** How often {@link #mUpdateTimeHandler} ticks in milliseconds. */
+        /**
+         * How often {@link #mUpdateTimeHandler} ticks in milliseconds.
+         */
         long mInteractiveUpdateRateMs = NORMAL_UPDATE_RATE_MS;
 
-        /** Handler to update the time periodically in interactive mode. */
+        /**
+         * Handler to update the time periodically in interactive mode.
+         */
         final Handler mUpdateTimeHandler = new Handler() {
             @Override
             public void handleMessage(Message message) {
@@ -180,12 +193,19 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
          */
         boolean mLowBitAmbient;
 
+        public Engine(LayoutInflater mInflater) {
+            this.mInflater = mInflater;
+        }
+
         @Override
         public void onCreate(SurfaceHolder holder) {
             if (Log.isLoggable(TAG, Log.DEBUG)) {
                 Log.d(TAG, "onCreate");
             }
             super.onCreate(holder);
+            mFrameLayout = (RelativeLayout) mInflater.inflate(R.layout.main, null);
+            timeTextView = (TextView) mFrameLayout.findViewById(R.id.time_text_view);
+            dateTextView = (TextView) mFrameLayout.findViewById(R.id.date_text_view);
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(DigitalWatchFaceService.this)
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_VARIABLE)
@@ -262,7 +282,7 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
         private void initFormats() {
             mDayOfWeekFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
             mDayOfWeekFormat.setCalendar(mCalendar);
-            mDateFormat = DateFormat.getDateFormat(DigitalWatchFaceService.this);
+            mDateFormat = new SimpleDateFormat("d MMM yyyy", Locale.getDefault());
             mDateFormat.setCalendar(mCalendar);
         }
 
@@ -444,71 +464,41 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
+            //Measure the view at the exact dimensions (otherwise the text won't center correctly)
+            int widthSpec = View.MeasureSpec.makeMeasureSpec(bounds.width(), View.MeasureSpec.EXACTLY);
+            int heightSpec = View.MeasureSpec.makeMeasureSpec(bounds.height(), View.MeasureSpec.EXACTLY);
+            mFrameLayout.measure(widthSpec, heightSpec);
+
+            //Lay the view out at the rect width and height
+            mFrameLayout.layout(0, 0, bounds.width(), bounds.height());
+
+            mFrameLayout.draw(canvas);
+
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
             mDate.setTime(now);
-            boolean is24Hour = DateFormat.is24HourFormat(DigitalWatchFaceService.this);
-
             // Show colons for the first half of each second so the colons blink on when the time
             // updates.
             mShouldDrawColons = (System.currentTimeMillis() % 1000) < 500;
 
-            // Draw the background.
-            canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
-
-            // Draw the hours.
-            float x = mXOffset;
-            String hourString;
-            if (is24Hour) {
-                hourString = formatTwoDigitNumber(mCalendar.get(Calendar.HOUR_OF_DAY));
-            } else {
-                int hour = mCalendar.get(Calendar.HOUR);
-                if (hour == 0) {
-                    hour = 12;
-                }
-                hourString = String.valueOf(hour);
-            }
-            canvas.drawText(hourString, x, mYOffset, mHourPaint);
-            x += mHourPaint.measureText(hourString);
-
-            // In ambient and mute modes, always draw the first colon. Otherwise, draw the
-            // first colon for the first half of each second.
-            if (isInAmbientMode() || mMute || mShouldDrawColons) {
-                canvas.drawText(COLON_STRING, x, mYOffset, mColonPaint);
-            }
-            x += mColonWidth;
-
-            // Draw the minutes.
-            String minuteString = formatTwoDigitNumber(mCalendar.get(Calendar.MINUTE));
-            canvas.drawText(minuteString, x, mYOffset, mMinutePaint);
-            x += mMinutePaint.measureText(minuteString);
-
-            // In unmuted interactive mode, draw a second blinking colon followed by the seconds.
-            // Otherwise, if we're in 12-hour mode, draw AM/PM
-            if (!isInAmbientMode() && !mMute) {
-                if (mShouldDrawColons) {
-                    canvas.drawText(COLON_STRING, x, mYOffset, mColonPaint);
-                }
-                x += mColonWidth;
-                canvas.drawText(formatTwoDigitNumber(
-                        mCalendar.get(Calendar.SECOND)), x, mYOffset, mSecondPaint);
-            } else if (!is24Hour) {
-                x += mColonWidth;
-                canvas.drawText(getAmPmString(
-                        mCalendar.get(Calendar.AM_PM)), x, mYOffset, mAmPmPaint);
-            }
-
+            //Time
+            Date date = mCalendar.getTime();
+            SimpleDateFormat simpleDate = new SimpleDateFormat("HH:mm");
+            String stringDate = simpleDate.format(date);
+            timeTextView.setText(stringDate);
+            // Date
+            dateTextView.setText(mDateFormat.format(mDate));
             // Only render the day of week and date if there is no peek card, so they do not bleed
             // into each other in ambient mode.
             if (getPeekCardPosition().isEmpty()) {
                 // Day of week
-                canvas.drawText(
-                        mDayOfWeekFormat.format(mDate),
-                        mXOffset, mYOffset + mLineHeight, mDatePaint);
-                // Date
-                canvas.drawText(
-                        mDateFormat.format(mDate),
-                        mXOffset, mYOffset + mLineHeight * 2, mDatePaint);
+//                canvas.drawText(
+//                        mDayOfWeekFormat.format(mDate),
+//                        mXOffset, mYOffset + mLineHeight, mDatePaint);
+
+//                canvas.drawText(
+//                        mDateFormat.format(mDate),
+//                        mXOffset, mYOffset + mLineHeight * 2, mDatePaint);
             }
         }
 
