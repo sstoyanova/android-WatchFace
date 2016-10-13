@@ -16,17 +16,22 @@
 
 package com.example.android.wearable.watchface;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
 import android.content.DialogInterface;
-import android.graphics.Color;
+import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.support.wearable.companion.WatchFaceCompanion;
 import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.Spinner;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -36,23 +41,33 @@ import com.google.android.gms.wearable.DataItem;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
+import com.nononsenseapps.filepicker.FilePickerActivity;
+
+import java.util.ArrayList;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
 /**
  * The phone-side config activity for {@code DigitalWatchFaceService}. Like the watch-side config
  * activity ({@code DigitalWatchFaceWearableConfigActivity}), allows for setting the background
- * color. Additionally, enables setting the color for hour, minute and second digits.
+ * path. Additionally, enables setting the path for hour, minute and second digits.
  */
-public class DigitalWatchFaceCompanionConfigActivity extends Activity
+public class DigitalConfigActivity extends Activity
         implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
-                ResultCallback<DataApi.DataItemResult> {
+        ResultCallback<DataApi.DataItemResult> {
     private static final String TAG = "DigitalWatchFaceConfig";
+    String path;
 
     // TODO: use the shared constants (needs covering all the samples with Gradle build model)
-    private static final String KEY_BACKGROUND_COLOR = "BACKGROUND_COLOR";
-    private static final String KEY_HOURS_COLOR = "HOURS_COLOR";
-    private static final String KEY_MINUTES_COLOR = "MINUTES_COLOR";
-    private static final String KEY_SECONDS_COLOR = "SECONDS_COLOR";
+    private static final String KEY_IMAGE_PATHS = "IMAGE_PATHS";
     private static final String PATH_WITH_FEATURE = "/watch_face_config/Digital";
+    private static final int FILE_CODE = 444444;
+    @BindView(R.id.imagesRecyclerView)
+    RecyclerView imagesRecyclerView;
+    @BindView(R.id.path_text_view)
+    TextView pathTextView;
+    SimpleImageAdapter adapter;
 
     private GoogleApiClient mGoogleApiClient;
     private String mPeerId;
@@ -61,6 +76,8 @@ public class DigitalWatchFaceCompanionConfigActivity extends Activity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_digital_watch_face_config);
+        ButterKnife.bind(this);
+        Log.d(TAG, "onCreate: ButterKnife.bind");
 
         mPeerId = getIntent().getStringExtra(WatchFaceCompanion.EXTRA_PEER_ID);
         mGoogleApiClient = new GoogleApiClient.Builder(this)
@@ -68,8 +85,6 @@ public class DigitalWatchFaceCompanionConfigActivity extends Activity
                 .addOnConnectionFailedListener(this)
                 .addApi(Wearable.API)
                 .build();
-
-
     }
 
     @Override
@@ -136,7 +151,8 @@ public class DigitalWatchFaceCompanionConfigActivity extends Activity
         builder.setMessage(messageText)
                 .setCancelable(false)
                 .setPositiveButton(okText, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) { }
+                    public void onClick(DialogInterface dialog, int id) {
+                    }
                 });
         AlertDialog alert = builder.create();
         alert.show();
@@ -147,65 +163,110 @@ public class DigitalWatchFaceCompanionConfigActivity extends Activity
      * item selection listeners.
      *
      * @param config the {@code DigitalWatchFaceService} config {@link DataMap}. If null, the
-     *         default items are selected.
+     *               default items are selected.
      */
     private void setUpAllPickers(DataMap config) {
-        setUpColorPickerSelection(R.id.background, KEY_BACKGROUND_COLOR, config,
-                R.string.color_black);
-        setUpColorPickerSelection(R.id.hours, KEY_HOURS_COLOR, config, R.string.color_white);
-        setUpColorPickerSelection(R.id.minutes, KEY_MINUTES_COLOR, config, R.string.color_white);
-        setUpColorPickerSelection(R.id.seconds, KEY_SECONDS_COLOR, config, R.string.color_gray);
-
-        setUpColorPickerListener(R.id.background, KEY_BACKGROUND_COLOR);
-        setUpColorPickerListener(R.id.hours, KEY_HOURS_COLOR);
-        setUpColorPickerListener(R.id.minutes, KEY_MINUTES_COLOR);
-        setUpColorPickerListener(R.id.seconds, KEY_SECONDS_COLOR);
+        setUpRecyclerView(KEY_IMAGE_PATHS, config);
     }
 
-    private void setUpColorPickerSelection(int spinnerId, final String configKey, DataMap config,
-            int defaultColorNameResId) {
-        String defaultColorName = getString(defaultColorNameResId);
-        int defaultColor = Color.parseColor(defaultColorName);
-        int color;
-        if (config != null) {
-            color = config.getInt(configKey, defaultColor);
-        } else {
-            color = defaultColor;
-        }
-        Spinner spinner = (Spinner) findViewById(spinnerId);
-        String[] colorNames = getResources().getStringArray(R.array.color_array);
-        for (int i = 0; i < colorNames.length; i++) {
-            if (Color.parseColor(colorNames[i]) == color) {
-                spinner.setSelection(i);
-                break;
-            }
-        }
-    }
-
-    private void setUpColorPickerListener(int spinnerId, final String configKey) {
-        Spinner spinner = (Spinner) findViewById(spinnerId);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+    private void setUpRecyclerView(final String configKey, DataMap config) {
+//        if (config != null) {
+//            path = config.getString(configKey, "");
+//            Log.d(TAG, "setUpRecyclerView: path= " + path);
+//            if (path != null) {
+//                pathTextView.setText(path);
+//            }
+//        } else {
+//        Uri fileUri = Uri.parse("android.resource://com.example.android.wearable.watchface/"
+//                + R.drawable.image);
+        path = Environment.getExternalStorageDirectory() + "/" + Environment.DIRECTORY_DCIM + "/Camera/";
+        pathTextView.setText(R.string.default_image_warning);
+        pathTextView.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, int pos, long id) {
-                final String colorName = (String) adapterView.getItemAtPosition(pos);
-                sendConfigUpdateMessage(configKey, Color.parseColor(colorName));
-            }
+            public void onClick(View view) {
+                // This always works
+                Intent i = new Intent(DigitalConfigActivity.this, FilePickerActivity.class);
+                // This works if you defined the intent filter
+                // Intent i = new Intent(Intent.ACTION_GET_CONTENT);
 
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) { }
+                // Set these depending on your use case. These are the defaults.
+                i.putExtra(FilePickerActivity.EXTRA_ALLOW_MULTIPLE, false);
+                i.putExtra(FilePickerActivity.EXTRA_ALLOW_CREATE_DIR, false);
+                i.putExtra(FilePickerActivity.EXTRA_MODE, FilePickerActivity.MODE_DIR);
+
+                // Configure initial directory by specifying a String.
+                // You could specify a String like "/storage/emulated/0/", but that can
+                // dangerous. Always use Android's API calls to get paths to the SD-card or
+                // internal memory.
+                i.putExtra(FilePickerActivity.EXTRA_START_PATH, Environment.getExternalStorageDirectory().getPath());
+
+                startActivityForResult(i, FILE_CODE);
+            }
         });
+//        }
+
+        imagesRecyclerView.setNestedScrollingEnabled(false);
+        imagesRecyclerView.setHasFixedSize(false);
+        StaggeredGridLayoutManager layoutManager
+                = new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL);
+        imagesRecyclerView.setLayoutManager(layoutManager);
+
+        adapter = new SimpleImageAdapter(path, this);
+        imagesRecyclerView.setAdapter(adapter);
+
+        // public void onItemSelected(AdapterView<?> adapterView, View view, int pos, long id) {
+        // final String pathName = (String) adapterView.getItemAtPosition(pos);
+        // sendConfigUpdateMessage(configKey, Color.parseColor(pathName));
     }
 
-    private void sendConfigUpdateMessage(String configKey, int color) {
+    private void sendConfigUpdateMessage(String configKey, int path) {
         if (mPeerId != null) {
             DataMap config = new DataMap();
-            config.putInt(configKey, color);
+            config.putInt(configKey, path);
             byte[] rawData = config.toByteArray();
             Wearable.MessageApi.sendMessage(mGoogleApiClient, mPeerId, PATH_WITH_FEATURE, rawData);
 
             if (Log.isLoggable(TAG, Log.DEBUG)) {
                 Log.d(TAG, "Sent watch face config message: " + configKey + " -> "
-                        + Integer.toHexString(color));
+                        + Integer.toHexString(path));
+            }
+        }
+    }
+
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FILE_CODE && resultCode == Activity.RESULT_OK) {
+            if (data.getBooleanExtra(FilePickerActivity.EXTRA_ALLOW_MULTIPLE, false)) {
+                // For JellyBean and above
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    ClipData clip = data.getClipData();
+
+                    if (clip != null) {
+                        for (int i = 0; i < clip.getItemCount(); i++) {
+                            Uri uri = clip.getItemAt(i).getUri();
+                            // Do something with the URI
+                        }
+                    }
+                    // For Ice Cream Sandwich
+                } else {
+                    ArrayList<String> paths = data.getStringArrayListExtra
+                            (FilePickerActivity.EXTRA_PATHS);
+
+                    if (paths != null) {
+                        for (String path : paths) {
+                            Uri uri = Uri.parse(path);
+                            // Do something with the URI
+                        }
+                    }
+                }
+
+            } else {
+                Uri uri = data.getData();
+                path = uri.getPath();
+                adapter.setImagePaths(path);
+                // Do something with the URI
             }
         }
     }
