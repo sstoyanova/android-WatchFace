@@ -18,7 +18,6 @@ package com.example.android.wearable.watchface;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.graphics.Color;
 import android.net.Uri;
@@ -28,7 +27,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Spinner;
-import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -71,10 +69,7 @@ public class DigitalWatchFaceCompanionConfigActivity extends Activity
                 .addApi(Wearable.API)
                 .build();
 
-        ComponentName name = getIntent().getParcelableExtra(
-                WatchFaceCompanion.EXTRA_WATCH_FACE_COMPONENT);
-        TextView label = (TextView)findViewById(R.id.label);
-        label.setText(label.getText() + " (" + name.getClassName() + ")");
+
     }
 
     @Override
