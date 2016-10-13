@@ -51,40 +51,71 @@
             android:name="com.google.android.wearable"
             android:required="false"/>
 
-        <activity android:name="android.support.wearable.complications.ComplicationHelperActivity"/>
-
         <service
-            android:name=".DigitalWatchFaceService"
-            android:label="@string/digital_name"
-            android:permission="android.permission.BIND_WALLPAPER">
+            android:name=".WatchFaceFolderService"
+            android:label="Devlabs Theme"
+            android:allowEmbedded="true"
+            android:taskAffinity=""
+            android:permission="android.permission.BIND_WALLPAPER" >
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/watch_face"/>
+                android:resource="@xml/watch_face" />
             <meta-data
                 android:name="com.google.android.wearable.watchface.preview"
-                android:resource="@drawable/preview_digital"/>
+                android:resource="@drawable/preview_digital" />
             <meta-data
                 android:name="com.google.android.wearable.watchface.preview_circular"
-                android:resource="@drawable/preview_digital_circular"/>
+                android:resource="@drawable/preview_digital_circular" />
+
             <meta-data
                 android:name="com.google.android.wearable.watchface.companionConfigurationAction"
-                android:value="com.example.android.wearable.watchface.CONFIG_DIGITAL"/>
+                android:value="com.example.android.wearable.watchface.CONFIG_DIGITAL" />
             <meta-data
                 android:name="com.google.android.wearable.watchface.wearableConfigurationAction"
-                android:value="com.example.android.wearable.watchface.CONFIG_DIGITAL"/>
+                android:value="com.example.android.wearable.watchface.CONFIG_DIGITAL" />
 
             <intent-filter>
-                <action android:name="android.service.wallpaper.WallpaperService"/>
-
-                <category android:name="com.google.android.wearable.watchface.category.WATCH_FACE"/>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+                <category
+                    android:name=
+                        "com.google.android.wearable.watchface.category.WATCH_FACE" />
             </intent-filter>
         </service>
 
-        <!--
-             All intent-filters for config actions must include the categories
-            com.google.android.wearable.watchface.category.WEARABLE_CONFIGURATION
-            and android.intent.category.DEFAULT.
-        -->
+        <!--<activity android:name="android.support.wearable.complications.ComplicationHelperActivity"/>-->
+
+        <!--<service-->
+            <!--android:name=".DigitalWatchFaceService"-->
+            <!--android:label="@string/digital_name"-->
+            <!--android:permission="android.permission.BIND_WALLPAPER">-->
+            <!--<meta-data-->
+                <!--android:name="android.service.wallpaper"-->
+                <!--android:resource="@xml/watch_face"/>-->
+            <!--<meta-data-->
+                <!--android:name="com.google.android.wearable.watchface.preview"-->
+                <!--android:resource="@drawable/preview_digital"/>-->
+            <!--<meta-data-->
+                <!--android:name="com.google.android.wearable.watchface.preview_circular"-->
+                <!--android:resource="@drawable/preview_digital_circular"/>-->
+            <!--<meta-data-->
+                <!--android:name="com.google.android.wearable.watchface.companionConfigurationAction"-->
+                <!--android:value="com.example.android.wearable.watchface.CONFIG_DIGITAL"/>-->
+            <!--<meta-data-->
+                <!--android:name="com.google.android.wearable.watchface.wearableConfigurationAction"-->
+                <!--android:value="com.example.android.wearable.watchface.CONFIG_DIGITAL"/>-->
+
+            <!--<intent-filter>-->
+                <!--<action android:name="android.service.wallpaper.WallpaperService"/>-->
+
+                <!--<category android:name="com.google.android.wearable.watchface.category.WATCH_FACE"/>-->
+            <!--</intent-filter>-->
+        <!--</service>-->
+
+        <!--&lt;!&ndash;-->
+             <!--All intent-filters for config actions must include the categories-->
+            <!--com.google.android.wearable.watchface.category.WEARABLE_CONFIGURATION-->
+            <!--and android.intent.category.DEFAULT.-->
+        <!--&ndash;&gt;-->
 
         <activity
             android:name=".DigitalWatchFaceWearableConfigActivity"
@@ -97,50 +128,16 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".DigitalWatchFaceConfigListenerService">
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED"/>
+        <!--<service android:name=".ConfigListenerService">-->
+            <!--<intent-filter>-->
+                <!--<action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED"/>-->
 
-                <data
-                    android:host="*"
-                    android:pathPrefix="/"
-                    android:scheme="wear"/>
-            </intent-filter>
-        </service>
-
-        <service
-            android:name=".provider.RandomNumberProviderService"
-            android:icon="@drawable/ic_launcher"
-            android:label="@string/complications_provider_random_number"
-            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
-            <intent-filter>
-                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST"/>
-            </intent-filter>
-
-            <meta-data
-                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="RANGED_VALUE,SHORT_TEXT,LONG_TEXT"/>
-            <!--
-            When your complication data provider is active, UPDATE_PERIOD_SECONDS specifies how
-            often you want the system to check for updates to the data. In this case, the time is
-            specified to 600 seconds (10 minutes).
-
-            In general, you want to set this value high and manually trigger updates only when your
-            complication data actually changes via ProviderUpdateRequester (check
-            UpdateComplicationDataService.java for an example).
-
-            In everyday use, developers should consider intervals in the order of minutes.
-            Also, remember that this is only a guidance for the system. Android Wear may update less
-            frequently.
-            -->
-            <meta-data
-                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
-                android:value="600"/>
-        </service>
-        <service
-            android:name=".provider.UpdateComplicationDataService"
-            android:exported="false">
-        </service>
+                <!--<data-->
+                    <!--android:host="*"-->
+                    <!--android:pathPrefix="/"-->
+                    <!--android:scheme="wear"/>-->
+            <!--</intent-filter>-->
+        <!--</service>-->
     </application>
 
 </manifest>

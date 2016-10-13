@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 package com.example.android.wearable.watchface;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -39,6 +43,7 @@ import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
@@ -47,12 +52,16 @@ import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+
+import static android.R.attr.bitmap;
+
 /**
  * Sample digital watch face with blinking colons and seconds. In ambient mode, the seconds are
  * replaced with an AM/PM indicator and the colons don't blink. On devices with low-bit ambient
@@ -540,6 +549,26 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
             );
         }
 
+        private void updateUiForConfigDataMap(final DataMap config) {
+            boolean uiUpdated = false;
+            for (String configKey : config.keySet()) {
+                if (!config.containsKey(configKey)) {
+                    continue;
+                }
+                int color = config.getInt(configKey);
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "Found watch face config key: " + configKey + " -> "
+                            + Integer.toHexString(color));
+                }
+                if (updateUiForKey(configKey, color)) {
+                    uiUpdated = true;
+                }
+            }
+            if (uiUpdated) {
+                invalidate();
+            }
+        }
+
         private void setDefaultValuesForMissingConfigKeys(DataMap config) {
             addIntKeyIfMissing(config, DigitalWatchFaceUtil.KEY_BACKGROUND_COLOR,
                     DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_BACKGROUND);
@@ -559,6 +588,7 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
 
         @Override // DataApi.DataListener
         public void onDataChanged(DataEventBuffer dataEvents) {
+            Log.d("TestLog", "onDataChanged: dataEvents DigitalWatchFaceService");
             for (DataEvent dataEvent : dataEvents) {
                 if (dataEvent.getType() != DataEvent.TYPE_CHANGED) {
                     continue;
@@ -579,25 +609,6 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
             }
         }
 
-        private void updateUiForConfigDataMap(final DataMap config) {
-            boolean uiUpdated = false;
-            for (String configKey : config.keySet()) {
-                if (!config.containsKey(configKey)) {
-                    continue;
-                }
-                int color = config.getInt(configKey);
-                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(TAG, "Found watch face config key: " + configKey + " -> "
-                            + Integer.toHexString(color));
-                }
-                if (updateUiForKey(configKey, color)) {
-                    uiUpdated = true;
-                }
-            }
-            if (uiUpdated) {
-                invalidate();
-            }
-        }
 
         /**
          * Updates the color of a UI item according to the given {@code configKey}. Does nothing if
@@ -644,4 +655,6 @@ public class DigitalWatchFaceService extends CanvasWatchFaceService {
             }
         }
     }
+
+
 }

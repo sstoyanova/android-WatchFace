@@ -19,7 +19,6 @@ package com.example.android.wearable.watchface;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.ClipData;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
@@ -42,8 +41,6 @@ import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 import com.nononsenseapps.filepicker.FilePickerActivity;
-
-import java.util.ArrayList;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -78,7 +75,7 @@ public class DigitalConfigActivity extends Activity
         setContentView(R.layout.activity_digital_watch_face_config);
         ButterKnife.bind(this);
         Log.d(TAG, "onCreate: ButterKnife.bind");
-
+        path = UserSharedPreferences.getInstance(this).readImagesPath();
         mPeerId = getIntent().getStringExtra(WatchFaceCompanion.EXTRA_PEER_ID);
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
@@ -179,8 +176,7 @@ public class DigitalConfigActivity extends Activity
 //        } else {
 //        Uri fileUri = Uri.parse("android.resource://com.example.android.wearable.watchface/"
 //                + R.drawable.image);
-        path = Environment.getExternalStorageDirectory() + "/" + Environment.DIRECTORY_DCIM + "/Camera/";
-        pathTextView.setText(R.string.default_image_warning);
+        pathTextView.setText(path);
         pathTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -195,11 +191,7 @@ public class DigitalConfigActivity extends Activity
                 i.putExtra(FilePickerActivity.EXTRA_MODE, FilePickerActivity.MODE_DIR);
 
                 // Configure initial directory by specifying a String.
-                // You could specify a String like "/storage/emulated/0/", but that can
-                // dangerous. Always use Android's API calls to get paths to the SD-card or
-                // internal memory.
-                i.putExtra(FilePickerActivity.EXTRA_START_PATH, Environment.getExternalStorageDirectory().getPath());
-
+                i.putExtra(FilePickerActivity.EXTRA_START_PATH, Environment.getExternalStorageDirectory() + "/" + Environment.DIRECTORY_DCIM);
                 startActivityForResult(i, FILE_CODE);
             }
         });
@@ -211,7 +203,7 @@ public class DigitalConfigActivity extends Activity
                 = new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL);
         imagesRecyclerView.setLayoutManager(layoutManager);
 
-        adapter = new SimpleImageAdapter(path, this);
+        adapter = new SimpleImageAdapter(path, this, mGoogleApiClient);
         imagesRecyclerView.setAdapter(adapter);
 
         // public void onItemSelected(AdapterView<?> adapterView, View view, int pos, long id) {
@@ -238,36 +230,11 @@ public class DigitalConfigActivity extends Activity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == FILE_CODE && resultCode == Activity.RESULT_OK) {
-            if (data.getBooleanExtra(FilePickerActivity.EXTRA_ALLOW_MULTIPLE, false)) {
-                // For JellyBean and above
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                    ClipData clip = data.getClipData();
-
-                    if (clip != null) {
-                        for (int i = 0; i < clip.getItemCount(); i++) {
-                            Uri uri = clip.getItemAt(i).getUri();
-                            // Do something with the URI
-                        }
-                    }
-                    // For Ice Cream Sandwich
-                } else {
-                    ArrayList<String> paths = data.getStringArrayListExtra
-                            (FilePickerActivity.EXTRA_PATHS);
-
-                    if (paths != null) {
-                        for (String path : paths) {
-                            Uri uri = Uri.parse(path);
-                            // Do something with the URI
-                        }
-                    }
-                }
-
-            } else {
-                Uri uri = data.getData();
-                path = uri.getPath();
-                adapter.setImagePaths(path);
-                // Do something with the URI
-            }
+            Uri uri = data.getData();
+            path = uri.getPath() + "/";
+            UserSharedPreferences.getInstance(this).saveImagesPath(path);
+            adapter.setImagePaths(path);
+            pathTextView.setText(path);
         }
     }
 }

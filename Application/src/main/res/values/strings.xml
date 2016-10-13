@@ -35,6 +35,7 @@
     <string name="color_red">Red</string>
     <string name="color_white">White</string>
     <string name="default_image_warning">You are using your default image. Click to choose another!</string>
+    <string name="shared_images_path">shared_images_path</string>
 
     <string-array name="color_array">
         <item>@string/color_black</item>

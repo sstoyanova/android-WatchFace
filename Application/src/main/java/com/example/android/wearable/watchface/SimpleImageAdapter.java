@@ -1,7 +1,10 @@
 package com.example.android.wearable.watchface;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,7 +12,16 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
+import com.google.android.gms.wearable.Wearable;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
@@ -24,12 +36,16 @@ import butterknife.ButterKnife;
  * simona@devlabs.bg
  */
 class SimpleImageAdapter extends RecyclerView.Adapter<SimpleImageAdapter.ViewHolder> {
+    private static final int MAX_IMAGES_SHOWING = 30;
     private Activity activity;
     private String directoryPath = "";
     private List<String> imagePaths;
+    private GoogleApiClient mGoogleApiClient;
+    boolean computing = false;
 
-    SimpleImageAdapter(String directoryPath, Activity activity) {
+    SimpleImageAdapter(String directoryPath, Activity activity, GoogleApiClient mGoogleApiClient) {
         this.directoryPath = directoryPath;
+        this.mGoogleApiClient = mGoogleApiClient;
         this.activity = activity;
         fillImagePaths();
     }
@@ -51,8 +67,8 @@ class SimpleImageAdapter extends RecyclerView.Adapter<SimpleImageAdapter.ViewHol
         });
         if (foundFiles != null && foundFiles.length > 0) {
             int max = foundFiles.length;
-            if (max > 10) {
-                max = 10;
+            if (max > MAX_IMAGES_SHOWING) {
+                max = MAX_IMAGES_SHOWING;
             }
             for (int i = 0; i < max; i++) {
                 File file = foundFiles[i];
@@ -74,14 +90,53 @@ class SimpleImageAdapter extends RecyclerView.Adapter<SimpleImageAdapter.ViewHol
     public void onBindViewHolder(final ViewHolder holder, int i) {
         final String imagePath = directoryPath + imagePaths.get(i);
         File file = new File(imagePath);
-//        Uri uri = Uri.fromFile(file);
         Glide.with(activity)
                 .load(file)
-                .placeholder(R.drawable.placeholder)
-//                .listener(new )
                 .diskCacheStrategy(DiskCacheStrategy.SOURCE)
                 .centerCrop()
                 .into(holder.imageView);
+        holder.imageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(computing){
+                    return;
+                }
+                computing = true;
+                Log.d("TestLog", "onClick: imageview");
+                Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+                //Bitmap bitmap = BitmapFactory.decodeResource(activity.getResources(), R.drawable.image);
+                Asset asset = createAssetFromBitmap(bitmap);
+
+
+//                PutDataRequest request = PutDataRequest.create("/image");
+//                request.putAsset("profileImage", asset);
+//                Wearable.DataApi.putDataItem(mGoogleApiClient, request);
+
+
+
+                PutDataMapRequest dataMap = PutDataMapRequest.create("/image");
+                dataMap.getDataMap().putAsset("profileImage", asset);
+                PutDataRequest request = dataMap.asPutDataRequest();
+                PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(mGoogleApiClient, request);
+                pendingResult.setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
+                    @Override
+                    public void onResult(DataApi.DataItemResult dataItemResult) {
+                        // something
+                    }
+                } );
+
+
+                computing = false;
+            }
+        });
+    }
+
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        Log.d("TestLog", "createAssetFromBitmap: ");
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
+        Log.d("TestLog", "bitmap.compress");
+        return Asset.createFromBytes(byteStream.toByteArray());
     }
 
     @Override
