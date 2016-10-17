@@ -17,10 +17,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.example.android.wearable.watchface">
 
-    <uses-sdk
-        android:minSdkVersion="18"
-        android:targetSdkVersion="23"/>
-
     <!-- Permissions required by the mobile app for reading images from gallery -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
